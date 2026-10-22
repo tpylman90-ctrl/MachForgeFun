@@ -14,16 +14,28 @@ permissions:
 jobs:
   generate-range-assets:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 60
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Install Blender
+      - name: Install Blender 4.5.14 LTS
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends -y blender
-          blender --background --factory-startup --python-expr "import bpy; print('Blender', bpy.app.version_string); assert bpy.app.version >= (4, 0, 0)"
+          set -euo pipefail
+          release="https://download.blender.org/release/Blender4.5"
+          archive="blender-4.5.14-linux-x64.tar.xz"
+          install_dir="$RUNNER_TEMP/blender-4.5.14"
+          mkdir -p "$install_dir"
+          curl --fail --location --retry 5 --retry-all-errors --connect-timeout 30 \
+            --output "$RUNNER_TEMP/$archive" "$release/$archive"
+          curl --fail --location --retry 5 --retry-all-errors --connect-timeout 30 \
+            --output "$RUNNER_TEMP/blender-4.5.14.sha256" "$release/blender-4.5.14.sha256"
+          (cd "$RUNNER_TEMP" && grep -F "$archive" blender-4.5.14.sha256 | sha256sum --check --strict)
+          tar -xJf "$RUNNER_TEMP/$archive" --strip-components=1 -C "$install_dir"
+          echo "$install_dir" >> "$GITHUB_PATH"
+          "$install_dir/blender" --background --factory-startup --python-expr \
+            "import bpy; print('Blender', bpy.app.version_string); assert bpy.app.version >= (4, 5, 0)"
 
       - name: Generate range scene and GLB
         run: blender --background --python tools/blender/generate_range_scene.py
