@@ -1,0 +1,26 @@
+; MachForgeFun — Godot 4 project
+config_version=5
+
+[application]
+config/name="MachForgeFun"
+run/main_scene="res://scenes/range.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+config/description="A sci-fi 3D physics range for experimenting with projectile shape and launch conditions."
+
+[display]
+window/size/viewport_width=1600
+window/size/viewport_height=900
+window/size/window_width_override=1600
+window/size/window_height_override=900
+window/stretch/mode="canvas_items"
+window/handheld/orientation=4
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false
+textures/vram_compression/import_etc2_astc=true
+environment/defaults/default_clear_color=Color(0.018, 0.033, 0.055, 1)
+
+[physics]
+3d/default_gravity=9.81

@@ -45,15 +45,16 @@ jobs:
 
       - name: Stage generated assets in the game
         run: |
-          mkdir -p assets
-          cp artifacts/machforge_range.blend artifacts/machforge_range.glb artifacts/machforge_range_preview.png assets/
+          mkdir -p assets/blender_source
+          cp artifacts/machforge_range.blend assets/blender_source/
+          cp artifacts/machforge_range.glb artifacts/machforge_range_preview.png assets/
           test -s assets/machforge_range_preview.png
 
       - name: Commit generated game assets
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add assets/machforge_range.blend assets/machforge_range.glb assets/machforge_range_preview.png
+          git add assets/blender_source/machforge_range.blend assets/machforge_range.glb assets/machforge_range_preview.png
           if ! git diff --cached --quiet; then
             git commit -m "Add generated cannon and range assets"
             git pull --rebase --strategy-option=theirs origin main
