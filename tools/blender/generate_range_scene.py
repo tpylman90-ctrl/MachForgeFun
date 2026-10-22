@@ -212,10 +212,6 @@ def build():
             cube("Range sensor mast", (x+.55,side*2.3,.75), (.18,.18,1.5), steel,.04)
             cyl("Range sensor beacon", (x+.55,side*2.3,1.55), .16,.12, amber,"Z",24)
 
-    # Soft atmospheric background cyclorama.
-    cube("Horizon backdrop", (16, 0, 5), (48, 30, .2), dark, .05)
-
-
 def aim(obj, point):
     obj.rotation_euler = (Vector(point)-obj.location).to_track_quat("-Z", "Y").to_euler()
 
