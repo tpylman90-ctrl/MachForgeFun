@@ -25,7 +25,7 @@ Open the repository root in Godot 4.7.2 and run `scenes/range.tscn`. The project
 
 ## Blender source
 
-`tools/blender/generate_range_scene.py` builds the launcher and test range and exports the editable `.blend`, the `.glb` imported by Godot, and a review render into `artifacts/`. The Blender workflow verifies the official Blender 4.5.14 archive checksum and stores generated assets as an Actions artifact. The Godot scene loads `assets/machforge_range.glb` directly.
+`tools/blender/generate_range_scene.py` builds the launcher and test range and exports the editable `.blend`, the `.glb` imported by Godot, and a review render into `artifacts/`. The Blender workflow verifies the official Blender 4.5.14 archive checksum and stores generated assets as an Actions artifact. The Godot scene loads `assets/machforge_range.glb` directly. The editable Blender source is kept in `assets/blender_source/`, which Godot skips during runtime import.
 
 Run the generator locally with Blender 4.5.14:
 
