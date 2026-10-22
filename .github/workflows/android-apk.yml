@@ -10,6 +10,7 @@ on:
       - "scripts/**"
       - "assets/**"
       - ".github/workflows/android-apk.yml"
+      - ".github/workflows/blender-assets.yml"
   pull_request:
     branches: [main]
   workflow_dispatch:
