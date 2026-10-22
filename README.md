@@ -18,7 +18,7 @@ The model numerically integrates gravity and quadratic aerodynamic drag in stand
 
 ## Blender source
 
-`tools/blender/generate_range_scene.py` builds a reusable sci-fi launcher, lane hardware, and target gates in Blender, then exports a `.blend` and `.glb` into `artifacts/`. GitHub Actions installs Blender on an Ubuntu runner and builds these assets whenever Blender source or its workflow changes on `main`. You can also start a run from the repository's **Actions → Build Blender Range Assets → Run workflow** menu. Each successful run attaches both files as the `machforge-range-assets` downloadable artifact.
+`tools/blender/generate_range_scene.py` builds a reusable sci-fi launcher, lane hardware, and target gates in Blender, then exports a `.blend` and `.glb` into `artifacts/`. GitHub Actions downloads Blender 4.5.14 LTS from Blender's official release server, verifies its SHA-256 checksum, and builds these assets whenever Blender source or its workflow changes on `main`. You can also start a run from the repository's **Actions → Build Blender Range Assets → Run workflow** menu. Each successful run attaches both files as the `machforge-range-assets` downloadable artifact.
 
 To run it locally, install Blender and use:
 
