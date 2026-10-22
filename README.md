@@ -26,4 +26,8 @@ To run it locally, install Blender and use:
 blender -b --python tools/blender/generate_range_scene.py
 ```
 
-The browser prototype does not import the GLB yet. The workflow checks the exported GLB structure before publishing the artifact.
+The browser scene uses the generated preview image as its range backdrop. The GLB is validated and kept available for future real-time 3D integration.
+
+## GitHub validation
+
+Pull requests and main-branch changes run **Validate MachForgeFun**. It installs the checksum-verified Blender 4.5.14 build, regenerates and validates the range assets, checks the app markup and JavaScript, then opens the app in headless Chromium to exercise desktop firing and mobile layout. Browser captures and generated Blender files are attached to the run for review. Generated asset publishing remains a separate workflow with write access; validation runs with read-only repository permissions.
