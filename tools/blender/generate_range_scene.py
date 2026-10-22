@@ -1,4 +1,4 @@
-"""Build MachForge's stylized hard-surface rail cannon and test range."""
+"""Build MachForge's stylized hard-surface rail cannon and test range for Blender."""
 import bpy
 import math
 import os
