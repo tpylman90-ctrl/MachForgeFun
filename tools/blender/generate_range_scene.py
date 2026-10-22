@@ -18,8 +18,10 @@ def material(name, color, metallic=0.0, roughness=0.4, emission=None):
     bsdf.inputs["Metallic"].default_value = metallic
     bsdf.inputs["Roughness"].default_value = roughness
     if emission:
-        bsdf.inputs["Emission Color"].default_value = (*emission, 1.0)
-        bsdf.inputs["Emission Strength"].default_value = 2.0
+        emission_socket = "Emission Color" if "Emission Color" in bsdf.inputs else "Emission"
+        bsdf.inputs[emission_socket].default_value = (*emission, 1.0)
+        if "Emission Strength" in bsdf.inputs:
+            bsdf.inputs["Emission Strength"].default_value = 2.0
     return mat
 
 
@@ -135,7 +137,15 @@ def build():
     rim.data.size = 7
 
     scene = bpy.context.scene
-    scene.render.engine = "BLENDER_EEVEE_NEXT"
+    engine_ids = {
+        item.identifier
+        for item in bpy.types.RenderSettings.bl_rna.properties["engine"].enum_items
+    }
+    scene.render.engine = (
+        "BLENDER_EEVEE_NEXT" if "BLENDER_EEVEE_NEXT" in engine_ids
+        else "BLENDER_EEVEE" if "BLENDER_EEVEE" in engine_ids
+        else "CYCLES"
+    )
     scene.render.resolution_x = 1440
     scene.render.resolution_y = 900
     scene.render.resolution_percentage = 100
