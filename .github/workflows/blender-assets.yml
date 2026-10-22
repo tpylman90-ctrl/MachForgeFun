@@ -1,0 +1,42 @@
+name: Build Blender Range Assets
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/blender/**"
+      - ".github/workflows/blender-assets.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate-range-assets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install Blender
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y blender
+          blender --background --factory-startup --python-expr "import bpy; print('Blender', bpy.app.version_string); assert bpy.app.version >= (4, 0, 0)"
+
+      - name: Generate range scene and GLB
+        run: blender --background --python tools/blender/generate_range_scene.py
+
+      - name: Validate exported GLB
+        run: python3 tools/blender/validate_glb.py artifacts/machforge_range.glb
+
+      - name: Save Blender assets as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: machforge-range-assets
+          path: |
+            artifacts/machforge_range.blend
+            artifacts/machforge_range.glb
+          if-no-files-found: error
+          retention-days: 30
