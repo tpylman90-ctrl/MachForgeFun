@@ -56,7 +56,7 @@ jobs:
           git add assets/machforge_range.blend assets/machforge_range.glb assets/machforge_range_preview.png
           if ! git diff --cached --quiet; then
             git commit -m "Add generated cannon and range assets"
-            git pull --rebase origin main
+            git pull --rebase --strategy-option=theirs origin main
             git push
           fi
 
