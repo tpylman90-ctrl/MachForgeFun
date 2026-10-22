@@ -154,11 +154,11 @@ func _make_projectile_mesh() -> ArrayMesh:
 			var p10 := _profile_point(sections[section + 1], a0)
 			var p11 := _profile_point(sections[section + 1], a1)
 			st.add_vertex(p00)
+			st.add_vertex(p11)
 			st.add_vertex(p10)
-			st.add_vertex(p11)
 			st.add_vertex(p00)
-			st.add_vertex(p11)
 			st.add_vertex(p01)
+			st.add_vertex(p11)
 	st.generate_normals()
 	st.commit(mesh)
 	return mesh
