@@ -1,0 +1,157 @@
+name: Build MachForgeFun Android APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "project.godot"
+      - "export_presets.cfg"
+      - "scenes/**"
+      - "scripts/**"
+      - "assets/**"
+      - ".github/workflows/android-apk.yml"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-apk-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out Godot project
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android export packages
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.1" "cmake;3.10.2.4988404" "ndk;28.1.13356709"
+
+      - name: Set up Godot and Android export templates
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.2
+          use-dotnet: false
+          include-templates: true
+
+      - name: Import project and Blender model
+        run: |
+          godot --headless --editor --path . --import --quit
+          godot --headless --path . --quit-after 8
+
+      - name: Create temporary debug signing key
+        run: |
+          keytool -genkeypair -v \
+            -keystore "$RUNNER_TEMP/machforgefun-debug.keystore" \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+          {
+            echo "GODOT_ANDROID_KEYSTORE_DEBUG_PATH=$RUNNER_TEMP/machforgefun-debug.keystore"
+            echo "GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey"
+            echo "GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android"
+          } >> "$GITHUB_ENV"
+
+      - name: Export installable Android APK
+        run: |
+          mkdir -p build
+          godot --headless --path . --export-debug "Android" build/MachForgeFun.apk
+          test -s build/MachForgeFun.apk
+          apksigner="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
+          test -n "$apksigner"
+          "$apksigner" verify --verbose build/MachForgeFun.apk
+
+      - name: Export emulator verification APK
+        run: |
+          godot --headless --path . --export-debug "Android Emulator" build/MachForgeFun-emulator.apk
+          test -s build/MachForgeFun-emulator.apk
+          apksigner="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
+          "$apksigner" verify --verbose build/MachForgeFun-emulator.apk
+
+      - name: Enable KVM for Android emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Install and smoke test on Android emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: |
+            mkdir -p build/emulator-diagnostics
+            adb shell settings put secure immersive_mode_confirmations confirmed
+            adb install build/MachForgeFun-emulator.apk
+            adb logcat -c
+            adb shell monkey -p com.machforgefun.range 1 | tee build/emulator-diagnostics/launch.txt
+            sleep 12
+            adb shell pidof com.machforgefun.range > build/emulator-diagnostics/app-pid.txt
+            adb logcat -d -v time | grep -Ei 'Godot|AndroidRuntime|FATAL EXCEPTION|MachForgeFun' > build/emulator-diagnostics/logcat.txt || true
+            if grep -Eq 'FATAL EXCEPTION|E Godot' build/emulator-diagnostics/logcat.txt; then echo 'Android runtime reported a fatal game error.'; exit 1; fi
+            adb shell screencap -p /sdcard/machforgefun-screen.png
+            adb pull /sdcard/machforgefun-screen.png build/MachForgeFun-emulator.png
+            test -s build/MachForgeFun-emulator.png
+
+      - name: Upload downloadable Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MachForgeFun-Android-APK
+          path: build/MachForgeFun.apk
+          if-no-files-found: error
+          retention-days: 90
+
+  publish:
+    needs: android
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Download tested arm64 APK
+        uses: actions/download-artifact@v4
+        with:
+          name: MachForgeFun-Android-APK
+          path: build
+
+      - name: Publish latest public APK download
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-latest
+          name: MachForgeFun Android APK
+          body: "Latest installable debug build of the Godot 3D physics range."
+          files: build/MachForgeFun.apk
+          overwrite_files: true
+          make_latest: true
+
+      - name: Upload emulator smoke diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: MachForgeFun-Android-emulator-diagnostics
+          path: |
+            build/MachForgeFun-emulator.png
+            build/emulator-diagnostics/
+          if-no-files-found: warn
+          retention-days: 30

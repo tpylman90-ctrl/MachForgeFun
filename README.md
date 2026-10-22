@@ -1,33 +1,41 @@
 # MachForgeFun
 
-MachForge is a small browser-based STEM ballistics lab. Players reshape a projectile's side profile, choose material and dimensions, set launch conditions, and fire one simulated round down a sci-fi test corridor.
+MachForgeFun is a Godot 4 3D physics range for learning projectile motion by changing launch conditions and shaping the projectile. The current build puts the Blender-made sci-fi cannon, lane, and target gates into a real-time Godot scene, then lets you fire one simulated round and inspect its flight telemetry.
 
-## Run
+## Download the Android APK
 
-Open `index.html` in a modern browser. There are no package installs, services, or network assets.
+The latest successful build is published here:
 
-## First playable loop
+**[Download the latest MachForgeFun APK](https://github.com/tpylman90-ctrl/MachForgeFun/releases/download/android-latest/MachForgeFun.apk)**
 
-- Drag the cyan profile points to sculpt an organic projectile nose and body.
-- Choose one of four starting silhouettes, then tune length, diameter, and core material.
-- Set muzzle velocity, launch elevation, and crosswind.
-- Fire and follow range, altitude, velocity, Mach number, and estimated aerodynamic drag.
-- Compare the velocity and altitude traces, then alter one variable and fire again.
+The Android workflow exports and verifies an arm64 debug APK on every main-branch build. Pull requests also build an APK artifact for review. This is an early development build signed with a temporary debug key.
 
-The model numerically integrates gravity and quadratic aerodynamic drag in standard sea-level air. It is an educational approximation, not a real-world firing tool. The current view is a lightweight procedural canvas scene so the prototype runs on desktop and mobile without a 3D engine.
+## Playable range
+
+- Adjust muzzle velocity, elevation, crosswind, and projectile nose roundness.
+- Fire a single projectile and follow its glowing flight trace.
+- Read range, altitude, time of flight, peak altitude, and Mach number.
+- Run the Godot project on desktop or export the landscape Android app.
+
+The trajectory uses a numerical integration of gravity and quadratic aerodynamic drag in standard sea-level air. It is an educational approximation.
+
+## Run with Godot
+
+Open the repository root in Godot 4.7.2 and run `scenes/range.tscn`. The project uses the mobile-friendly Compatibility renderer.
 
 ## Blender source
 
-`tools/blender/generate_range_scene.py` builds a reusable sci-fi launcher, lane hardware, and target gates in Blender, then exports a `.blend` and `.glb` into `artifacts/`. GitHub Actions downloads Blender 4.5.14 LTS from Blender's official release server, verifies its SHA-256 checksum, and builds these assets whenever Blender source or its workflow changes on `main`. You can also start a run from the repository's **Actions → Build Blender Range Assets → Run workflow** menu. Each successful run attaches both files as the `machforge-range-assets` downloadable artifact.
+`tools/blender/generate_range_scene.py` builds the launcher and test range and exports the editable `.blend`, the `.glb` imported by Godot, and a review render into `artifacts/`. The Blender workflow verifies the official Blender 4.5.14 archive checksum and stores generated assets as an Actions artifact. The Godot scene loads `assets/machforge_range.glb` directly.
 
-To run it locally, install Blender and use:
+Run the generator locally with Blender 4.5.14:
 
 ```sh
-blender -b --python tools/blender/generate_range_scene.py
+blender --background --python tools/blender/generate_range_scene.py
+python3 tools/blender/validate_glb.py artifacts/machforge_range.glb
 ```
 
-The browser scene uses the generated preview image as its range backdrop. The GLB is validated and kept available for future real-time 3D integration.
+## Build an APK locally
 
-## GitHub validation
+Install Godot 4.7.2 with Android export templates, Java 17, and the Android SDK packages in `.github/workflows/android-apk.yml`. Then import the project and export the `Android` preset to `build/MachForgeFun.apk`.
 
-Pull requests and main-branch changes run **Validate MachForgeFun**. It installs the checksum-verified Blender 4.5.14 build, regenerates and validates the range assets, checks the app markup and JavaScript, then opens the app in headless Chromium to exercise desktop firing and mobile layout. Browser captures and generated Blender files are attached to the run for review. Generated asset publishing remains a separate workflow with write access; validation runs with read-only repository permissions.
+GitHub Actions runs the same Godot import and scene smoke test on changes, checks the Blender GLB, exports and verifies the APK, and publishes each successful main build to the download link above.

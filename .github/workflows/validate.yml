@@ -1,35 +1,40 @@
-name: Validate MachForgeFun
+name: Validate Godot Range
 
 on:
   push:
     branches: [main]
-    paths-ignore:
+    paths:
+      - "project.godot"
+      - "scenes/**"
+      - "scripts/**"
       - "assets/**"
+      - "tools/blender/**"
+      - ".github/workflows/**"
   pull_request:
     branches: [main]
-    paths-ignore:
-      - "assets/**"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: validate-${{ github.workflow }}-${{ github.ref }}
+  group: validate-godot-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   validate:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 45
     steps:
       - name: Check out project
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Godot and export templates
+        uses: chickensoft-games/setup-godot@v2
         with:
-          node-version: 22
+          version: 4.7.2
+          use-dotnet: false
+          include-templates: true
 
       - name: Install Blender 4.5.14 LTS
         shell: bash
@@ -46,51 +51,27 @@ jobs:
           (cd "$RUNNER_TEMP" && grep -F "$archive" blender-4.5.14.sha256 | sha256sum --check --strict)
           tar -xJf "$RUNNER_TEMP/$archive" --strip-components=1 -C "$install_dir"
           echo "$install_dir" >> "$GITHUB_PATH"
-          "$install_dir/blender" --background --factory-startup --python-expr \
-            "import bpy; print('Blender', bpy.app.version_string); assert bpy.app.version >= (4, 5, 0)"
 
-      - name: Validate browser app structure and JavaScript
-        run: python3 tools/validate_web_app.py
-
-      - name: Build Blender range scene
-        run: blender --background --python tools/blender/generate_range_scene.py
-
-      - name: Validate and stage generated scene preview
+      - name: Validate the Blender scene and Godot GLB asset
         run: |
+          python3 tools/blender/validate_glb.py assets/machforge_range.glb
+          blender --background --python tools/blender/generate_range_scene.py
           python3 tools/blender/validate_glb.py artifacts/machforge_range.glb
           test -s artifacts/machforge_range.blend
           test -s artifacts/machforge_range_preview.png
-          mkdir -p assets
-          cp artifacts/machforge_range_preview.png assets/machforge_range_preview.png
 
-      - name: Install pinned Playwright browser test
-        run: |
-          npm install --no-save --no-package-lock playwright@1.56.1
-          npx --no-install playwright install --with-deps chromium
+      - name: Import Godot project resources
+        run: godot --headless --editor --path . --import --quit
 
-      - name: Start local app server
-        shell: bash
-        run: |
-          python3 -m http.server 4173 --bind 127.0.0.1 > "$RUNNER_TEMP/machforgefun-http.log" 2>&1 &
-          echo $! > "$RUNNER_TEMP/machforgefun-http.pid"
-          for attempt in {1..30}; do
-            if curl --fail --silent http://127.0.0.1:4173/ > /dev/null; then exit 0; fi
-            sleep 1
-          done
-          cat "$RUNNER_TEMP/machforgefun-http.log"
-          exit 1
+      - name: Smoke test the range scene
+        run: godot --headless --path . --quit-after 8
 
-      - name: Smoke test desktop and mobile browser flows
-        run: node tools/smoke_test.mjs
-
-      - name: Upload browser captures and generated assets
+      - name: Upload generated Blender review assets
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: machforgefun-validation-captures
+          name: MachForgeFun-Blender-Range-Review
           path: |
-            artifacts/machforgefun-smoke-desktop.png
-            artifacts/machforgefun-smoke-mobile.png
             artifacts/machforge_range.blend
             artifacts/machforge_range.glb
             artifacts/machforge_range_preview.png
