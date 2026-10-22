@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   generate-range-assets:
@@ -40,8 +40,24 @@ jobs:
       - name: Generate range scene and GLB
         run: blender --background --python tools/blender/generate_range_scene.py
 
-      - name: Validate exported GLB
+      - name: Validate exported scene
         run: python3 tools/blender/validate_glb.py artifacts/machforge_range.glb
+
+      - name: Stage generated assets in the game
+        run: |
+          mkdir -p assets
+          cp artifacts/machforge_range.blend artifacts/machforge_range.glb artifacts/machforge_range_preview.png assets/
+          test -s assets/machforge_range_preview.png
+
+      - name: Commit generated game assets
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/machforge_range.blend assets/machforge_range.glb assets/machforge_range_preview.png
+          if ! git diff --cached --quiet; then
+            git commit -m "Add generated cannon and range assets"
+            git push
+          fi
 
       - name: Save Blender assets as workflow artifact
         uses: actions/upload-artifact@v4
@@ -50,5 +66,6 @@ jobs:
           path: |
             artifacts/machforge_range.blend
             artifacts/machforge_range.glb
+            artifacts/machforge_range_preview.png
           if-no-files-found: error
           retention-days: 30
