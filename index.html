@@ -74,6 +74,7 @@ const presets={
  organic:[.025,.17,.29,.255,.33,.295,.35,.31,.34]
 };
 let shape=presets.ogive.map((r,i)=>({x:i/(presets.ogive.length-1),r})), shot=null, animFrame=0, shotState='ready', activePreset='ogive', dragIndex=-1, dpr=1;
+const rangeBackdrop=new Image();rangeBackdrop.src='assets/machforge_range_preview.png';rangeBackdrop.onload=()=>drawScene();
 const nice=(v,d=0)=>Number(v).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
 function sizeCanvas(c,context){const b=c.getBoundingClientRect();if(!b.width||!b.height)return;dpr=Math.min(devicePixelRatio||1,2);c.width=Math.round(b.width*dpr);c.height=Math.round(b.height*dpr);context.setTransform(dpr,0,0,dpr,0,0)}
 function roundedRect(c,x,y,w,h,r){c.beginPath();c.roundRect(x,y,w,h,r)}
@@ -98,6 +99,9 @@ function simulate(){const p=getParams(),v0=+$('#velocity').value,angle=+$('#elev
  while(t<60&&y>=0&&x<15000){const speed=Math.hypot(vx,vy),rho=1.225*Math.exp(-Math.max(0,y)/8500),relx=vx-wind,rel=Math.hypot(relx,vy);const drag=.5*rho*rel*rel*p.cd*p.area;lastDrag=drag;maxDrag=Math.max(maxDrag,drag);const ax=-drag*relx/Math.max(rel,.01)/p.mass,ay=-9.81-drag*vy/Math.max(rel,.01)/p.mass;vx+=ax*dt;vy+=ay*dt;x+=vx*dt;y+=vy*dt;t+=dt;peak=Math.max(peak,y);if(Math.round(t*10)%3===0)points.push({x,y:Math.max(0,y),t,v:Math.hypot(vx,vy),mach:Math.hypot(vx,vy)/343})}
  const end=points[points.length-1];if(end.y>0)points.push({x,y:0,t,v:Math.hypot(vx,vy),mach:Math.hypot(vx,vy)/343});return{points,range:x,time:t,peak,mass:p.mass,maxDrag,cd:p.cd,wind};}
 function drawScene(){const w=range.clientWidth,h=range.clientHeight;if(!w||!h)return;sizeCanvas(range,rctx);const c=rctx; c.clearRect(0,0,w,h);
+ if(rangeBackdrop.complete&&rangeBackdrop.naturalWidth){c.drawImage(rangeBackdrop,0,0,w,h);const shade=c.createLinearGradient(0,0,0,h);shade.addColorStop(0,'#06111b22');shade.addColorStop(.62,'#06111b00');shade.addColorStop(1,'#06111bcc');c.fillStyle=shade;c.fillRect(0,0,w,h);
+  if(shot){const ox=w*.74,oy=h*.52,dx=w*.23,dy=h*.12,maxX=Math.max(2000,shot.range*1.08),sx=dx/maxX,sy=Math.min(h*.25/Math.max(250,shot.peak),.0012);c.beginPath();shot.points.forEach((p,i)=>{const x=ox+p.x*sx,y=oy-p.x/maxX*dy-p.y*sy;i?c.lineTo(x,y):c.moveTo(x,y)});c.strokeStyle='#6ce7f1dd';c.lineWidth=2;c.setLineDash([6,5]);c.stroke();c.setLineDash([]);const p=shot.points[Math.min(animFrame,shot.points.length-1)];if(p){const px=ox+p.x*sx-p.x/maxX*dy*.18,py=oy-p.x/maxX*dy-p.y*sy;c.save();c.shadowColor='#71efff';c.shadowBlur=16;c.fillStyle='#d8ffff';c.beginPath();c.ellipse(px,py,8,3,-.25,0,Math.PI*2);c.fill();c.restore()}}
+  c.strokeStyle='#d9e8e922';c.lineWidth=1;c.strokeRect(8,8,w-16,h-16);return}
  const sky=c.createLinearGradient(0,0,0,h);sky.addColorStop(0,'#0b1b29');sky.addColorStop(.48,'#1a3543');sky.addColorStop(.78,'#718082');sky.addColorStop(.79,'#263a3b');sky.addColorStop(1,'#0b171d');c.fillStyle=sky;c.fillRect(0,0,w,h);
  // diffuse sun and high atmospheric haze
  const sun=c.createRadialGradient(w*.73,h*.33,2,w*.73,h*.33,h*.56);sun.addColorStop(0,'#f0be8255');sun.addColorStop(.18,'#e6a66b28');sun.addColorStop(1,'#f0be8200');c.fillStyle=sun;c.fillRect(0,0,w,h);
