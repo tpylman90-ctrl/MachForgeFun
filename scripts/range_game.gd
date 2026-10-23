@@ -194,26 +194,10 @@ func _create_follow_ground() -> void:
 	var ground_mesh := PlaneMesh.new()
 	ground_mesh.size = Vector2(900.0, 300.0)
 	follow_ground.mesh = ground_mesh
-	var ground_material := ShaderMaterial.new()
-	var ground_shader := Shader.new()
-	ground_shader.code = """
-	shader_type spatial;
-	render_mode diffuse_burley;
-	varying vec3 world_position;
-	void vertex() {
-		world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	}
-	void fragment() {
-		vec2 grid = abs(fract(world_position.xz * 0.12) - 0.5);
-		float seam = 1.0 - step(0.012, min(grid.x, grid.y));
-		float fleck = fract(sin(dot(floor(world_position.xz * 1.7), vec2(12.9898, 78.233))) * 43758.5453);
-		vec3 base = vec3(0.018, 0.027, 0.040) + fleck * vec3(0.008, 0.009, 0.011);
-		ALBEDO = mix(base, vec3(0.030, 0.055, 0.068), seam * 0.34);
-		METALLIC = 0.12;
-		ROUGHNESS = 0.88;
-	}
-	"""
-	ground_material.shader = ground_shader
+	var ground_material := StandardMaterial3D.new()
+	ground_material.albedo_color = Color("101a26")
+	ground_material.metallic = 0.12
+	ground_material.roughness = 0.88
 	follow_ground.material_override = ground_material
 	follow_ground.position = Vector3(0.0, -0.08, 0.0)
 	add_child(follow_ground)
