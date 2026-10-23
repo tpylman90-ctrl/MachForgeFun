@@ -72,8 +72,15 @@ func _physics_process(delta: float) -> void:
 func _setup_world() -> void:
 	var world := WorldEnvironment.new()
 	var environment := Environment.new()
-	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Color("071426")
+	environment.background_mode = Environment.BG_SKY
+	var sky := Sky.new()
+	var sky_material := ProceduralSkyMaterial.new()
+	sky_material.sky_top_color = Color("071426")
+	sky_material.sky_horizon_color = Color("304c61")
+	sky_material.ground_bottom_color = Color("101a27")
+	sky_material.ground_horizon_color = Color("263747")
+	sky.sky_material = sky_material
+	environment.sky = sky
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color("8299aa")
 	environment.ambient_light_energy = 0.55
@@ -84,7 +91,7 @@ func _setup_world() -> void:
 	sun.rotation_degrees = Vector3(-48, -28, 0)
 	sun.light_color = Color("c8e5ff")
 	sun.light_energy = 1.4
-	sun.shadow_enabled = false
+	sun.shadow_enabled = true
 	add_child(sun)
 
 
