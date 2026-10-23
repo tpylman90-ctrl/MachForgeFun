@@ -126,6 +126,31 @@ def build():
             cube("Recoil frame foot", (x, y, .52), (.36, .34, .7), dark, .07)
             cube("Recoil frame brace", (x+.38, y, .55), (.9, .12, .12), blue, .035).rotation_euler[1] = -.28
 
+    # Heavy elevation cradle: visible trunnions, geared pivots, side cheeks,
+    # and paired hydraulic rams make the barrel feel supported and aimable.
+    cube("Elevation cradle crossbeam", (1.0, 0, .82), (4.8, 2.75, .32), dark, .11)
+    cube("Elevation bearing deck", (1.15, 0, 1.03), (3.5, 2.35, .22), steel, .08)
+    for side in (-1, 1):
+        y = side * 1.42
+        cheek = cube("Armored elevation cheek", (1.0, y, 1.68), (3.35, .25, 1.48), blue, .12)
+        cheek.rotation_euler[1] = -.08
+        cube("Cradle cyan rail", (1.15, y + side * .14, 2.25), (2.7, .035, .07), cyan, .018)
+        # Pivot axis runs across the gun. Layered rings and a toothed drive
+        # read as a real trunnion assembly instead of a floating barrel.
+        cyl("Elevation trunnion axle", (1.08, side * 1.56, 1.82), .28, .42, steel, "Y")
+        cyl("Elevation drive housing", (1.08, side * 1.79, 1.82), .50, .16, dark, "Y")
+        torus("Elevation drive rim", (1.08, side * 1.90, 1.82), .40, .055, copper, "Y")
+        cyl("Trunnion cyan hub", (1.08, side * 1.90, 1.82), .22, .08, cyan, "Y")
+        # A pair of inclined hydraulic rams carries the cradle load.
+        ram = cyl("Elevation hydraulic cylinder", (.0, side * 1.57, .87), .16, 1.75, dark, "Z")
+        ram.rotation_euler[1] = .34
+        piston = cyl("Elevation ram polished piston", (.62, side * 1.57, 1.22), .085, .82, steel, "Z")
+        piston.rotation_euler[1] = .34
+        cyl("Elevation ram lower clevis", (-.05, side * 1.57, .38), .25, .22, blue_hi, "Y")
+        cyl("Elevation ram upper clevis", (.85, side * 1.57, 1.55), .23, .22, copper, "Y")
+        for bolt_x in (-.25, .35, 1.0, 1.65, 2.25):
+            cyl("Cradle cheek bolt", (bolt_x, side * 1.57, 1.12), .055, .07, steel, "Y", 16, .006)
+
     # Main armored breech block and articulated armor plates.
     cube("Breech armor core", (-.55, 0, 1.62), (3.25, 2.65, 2.05), blue, .24)
     cube("Top service deck", (-.62, 0, 2.7), (2.55, 2.25, .18), blue_hi, .09)
