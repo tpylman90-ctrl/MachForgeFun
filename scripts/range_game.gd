@@ -9,6 +9,9 @@ const PROJECTILE_MASS := 1.25
 var projectile_radius_meters := 0.085
 
 var camera: Camera3D
+var follow_camera_enabled := false
+var follow_camera_button: Button
+var follow_ground: MeshInstance3D
 var projectile: MeshInstance3D
 var trail: MeshInstance3D
 var velocity := Vector2.ZERO # x and y velocity in metres per second
@@ -31,6 +34,7 @@ func _ready() -> void:
 	_setup_world()
 	_add_range_model()
 	_setup_camera()
+	_create_follow_ground()
 	_build_hud()
 	_create_projectile()
 	_refresh_hud()
@@ -38,6 +42,7 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	if not running:
+		_update_projectile_camera(delta)
 		return
 	var dt := minf(delta, 1.0 / 30.0)
 	var relative_velocity := velocity - Vector2(wind_mps, 0.0)
@@ -54,6 +59,8 @@ func _physics_process(delta: float) -> void:
 	projectile.position.x += (velocity.x + wind_mps) * dt * METERS_TO_UNITS
 	projectile.position.y += velocity.y * dt * METERS_TO_UNITS
 	projectile.rotation.z = atan2(velocity.y, velocity.x)
+	_update_follow_ground()
+	_update_projectile_camera(dt)
 	_update_trail()
 	_refresh_hud()
 	if projectile.position.y <= 0.45 or traveled_m >= max_range_m or flight_time > 12.0:
@@ -91,7 +98,81 @@ func _setup_world() -> void:
 func _add_range_model() -> void:
 	var model := RANGE_SCENE.instantiate()
 	model.name = "BlenderRangeAsset"
+	_add_runtime_elevation_cradle(model)
 	add_child(model)
+
+
+func _add_runtime_elevation_cradle(model: Node3D) -> void:
+	# Keep the cannon mechanically supported even when an older GLB is loaded.
+	# The Blender export contains the same assembly; detect it to avoid duplicates.
+	if model.find_child("Elevation trunnion axle*", true, false) != null:
+		return
+	var armor := _make_surface_material(Color("14508a"), 0.62, 0.28)
+	var edge := _make_surface_material(Color("2785bd"), 0.55, 0.24)
+	var steel := _make_surface_material(Color("71838d"), 0.82, 0.24)
+	var copper := _make_surface_material(Color("c65a28"), 0.75, 0.24)
+	var dark := _make_surface_material(Color("101b25"), 0.78, 0.32)
+	var cyan := _make_surface_material(Color("11bfdc"), 0.42, 0.2, Color("07aeca"))
+	_add_box_mesh(model, "Elevation cradle crossbeam", Vector3(1.0, 0.82, 0), Vector3(4.8, 0.32, 2.75), dark)
+	_add_box_mesh(model, "Elevation bearing deck", Vector3(1.15, 1.03, 0), Vector3(3.5, 0.22, 2.35), steel)
+	for side_value in [-1.0, 1.0]:
+		var side: float = side_value
+		var side_z: float = side * 1.42
+		_add_box_mesh(model, "Armored elevation cheek", Vector3(1.0, 1.68, side_z), Vector3(3.35, 1.48, 0.25), armor)
+		_add_box_mesh(model, "Cradle cyan rail", Vector3(1.15, 2.25, side * 1.56), Vector3(2.7, 0.07, 0.035), cyan)
+		_add_cylinder_mesh(model, "Elevation trunnion axle", Vector3(1.08, 1.82, side * 1.56), 0.28, 0.42, steel, true)
+		_add_cylinder_mesh(model, "Elevation drive housing", Vector3(1.08, 1.82, side * 1.79), 0.50, 0.16, dark, true)
+		_add_cylinder_mesh(model, "Elevation drive rim", Vector3(1.08, 1.82, side * 1.90), 0.42, 0.08, copper, true)
+		_add_cylinder_mesh(model, "Trunnion cyan hub", Vector3(1.08, 1.82, side * 1.95), 0.22, 0.08, cyan, true)
+		var ram := _add_cylinder_mesh(model, "Elevation hydraulic cylinder", Vector3(0.0, 0.87, side * 1.57), 0.16, 1.75, dark)
+		ram.rotation.z = 0.34
+		var piston := _add_cylinder_mesh(model, "Elevation ram polished piston", Vector3(0.62, 1.22, side * 1.57), 0.085, 0.82, steel)
+		piston.rotation.z = 0.34
+		_add_cylinder_mesh(model, "Elevation ram lower clevis", Vector3(-0.05, 0.38, side * 1.57), 0.25, 0.22, edge, true)
+		_add_cylinder_mesh(model, "Elevation ram upper clevis", Vector3(0.85, 1.55, side * 1.57), 0.23, 0.22, copper, true)
+		for bolt_x in [-0.25, 0.35, 1.0, 1.65, 2.25]:
+			_add_cylinder_mesh(model, "Cradle cheek bolt", Vector3(bolt_x, 1.12, side * 1.57), 0.055, 0.07, steel, true)
+
+
+func _make_surface_material(color: Color, metallic: float, roughness: float, glow: Color = Color.BLACK) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.metallic = metallic
+	material.roughness = roughness
+	if glow != Color.BLACK:
+		material.emission_enabled = true
+		material.emission = glow
+		material.emission_energy_multiplier = 1.1
+	return material
+
+
+func _add_box_mesh(parent: Node3D, mesh_name: String, position: Vector3, size: Vector3, material: Material) -> MeshInstance3D:
+	var instance := MeshInstance3D.new()
+	instance.name = mesh_name
+	var box := BoxMesh.new()
+	box.size = size
+	instance.mesh = box
+	instance.material_override = material
+	instance.position = position
+	parent.add_child(instance)
+	return instance
+
+
+func _add_cylinder_mesh(parent: Node3D, mesh_name: String, position: Vector3, radius: float, height: float, material: Material, axis_z: bool = false) -> MeshInstance3D:
+	var instance := MeshInstance3D.new()
+	instance.name = mesh_name
+	var cylinder := CylinderMesh.new()
+	cylinder.top_radius = radius
+	cylinder.bottom_radius = radius
+	cylinder.height = height
+	cylinder.radial_segments = 24
+	instance.mesh = cylinder
+	instance.material_override = material
+	instance.position = position
+	if axis_z:
+		instance.rotation.x = PI * 0.5
+	parent.add_child(instance)
+	return instance
 
 
 func _setup_camera() -> void:
@@ -102,6 +183,53 @@ func _setup_camera() -> void:
 	camera.current = true
 	add_child(camera)
 	camera.look_at(Vector3(16.0, 1.8, 0.0), Vector3.UP)
+
+
+func _create_follow_ground() -> void:
+	# The authored range deck ends near the first target. Keep a large, subtle
+	# terrain patch beneath the round so the projectile camera never looks into
+	# an empty void when a shot travels beyond the Blender set.
+	follow_ground = MeshInstance3D.new()
+	follow_ground.name = "ProjectileRenderZoneGround"
+	var ground_mesh := PlaneMesh.new()
+	ground_mesh.size = Vector2(900.0, 300.0)
+	follow_ground.mesh = ground_mesh
+	var ground_material := StandardMaterial3D.new()
+	ground_material.albedo_color = Color("101a26")
+	ground_material.metallic = 0.12
+	ground_material.roughness = 0.88
+	follow_ground.material_override = ground_material
+	follow_ground.position = Vector3(0.0, -0.08, 0.0)
+	add_child(follow_ground)
+
+
+func _update_follow_ground() -> void:
+	if is_instance_valid(follow_ground):
+		# Recenter in generous steps so the rendered surface remains continuous
+		# across the full modeled flight range without visible per-frame motion.
+		var tile_center_x := floorf(projectile.position.x / 180.0) * 180.0 + 90.0
+		follow_ground.position.x = tile_center_x
+		follow_ground.position.z = projectile.position.z
+
+
+func _update_projectile_camera(delta: float) -> void:
+	if not follow_camera_enabled or not is_instance_valid(projectile):
+		return
+	var horizontal := Vector3(velocity.x, 0.0, 0.0).normalized()
+	if horizontal.length_squared() < 0.01:
+		horizontal = Vector3.RIGHT
+	var speed := maxf(velocity.length(), 1.0)
+	var elevation := atan2(velocity.y, maxf(absf(velocity.x), 0.1))
+	# Keep some horizon and range visible even on steep shots. The projectile
+	# stays ahead of the camera while the pitch cap keeps the ground in frame.
+	var camera_pitch := clampf(elevation, deg_to_rad(-8.0), deg_to_rad(22.0))
+	var backward := Vector3(-horizontal.x * 8.5, -sin(camera_pitch) * 8.5, -horizontal.z * 8.5)
+	var desired_position := projectile.position + backward + Vector3(0.0, 1.7, 0.0)
+	var look_ahead := Vector3(horizontal.x, sin(camera_pitch), horizontal.z) * clampf(speed * 0.10, 5.0, 13.0)
+	var desired_target := projectile.position + look_ahead
+	var blend := 1.0 - exp(-6.0 * maxf(delta, 0.0))
+	camera.position = camera.position.lerp(desired_position, blend)
+	camera.look_at(desired_target, Vector3.UP)
 
 
 func _create_projectile() -> void:
@@ -216,6 +344,20 @@ func _build_hud() -> void:
 	_add_readout(right_box, "TIME OF FLIGHT", "time", "—")
 	_add_readout(right_box, "PEAK ALTITUDE", "peak", "—")
 	_add_readout(right_box, "MACH", "mach", "—")
+
+	follow_camera_button = Button.new()
+	follow_camera_button.text = "PROJECTILE CAM  •  OFF"
+	follow_camera_button.toggle_mode = true
+	follow_camera_button.custom_minimum_size = Vector2(230, 48)
+	follow_camera_button.size = Vector2(230, 48)
+	follow_camera_button.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	follow_camera_button.offset_left = -252
+	follow_camera_button.offset_top = -126
+	follow_camera_button.offset_right = -22
+	follow_camera_button.offset_bottom = -78
+	follow_camera_button.add_theme_font_size_override("font_size", 14)
+	follow_camera_button.pressed.connect(_toggle_projectile_camera)
+	root.add_child(follow_camera_button)
 
 	range_label = Label.new()
 	range_label.text = "RANGE READY  /  SINGLE ROUND"
@@ -357,6 +499,7 @@ func _fire() -> void:
 	var angle_deg := float(hud_labels.get("angle_value", 18.0))
 	velocity = Vector2(speed * cos(deg_to_rad(angle_deg)), speed * sin(deg_to_rad(angle_deg)))
 	projectile.rotation.z = deg_to_rad(angle_deg)
+	_update_follow_ground()
 	projectile.visible = true
 	running = true
 	launch_button.text = "IN FLIGHT…"
@@ -365,10 +508,12 @@ func _fire() -> void:
 
 func _reset() -> void:
 	running = false
+	velocity = Vector2.ZERO
 	flight_time = 0.0
 	traveled_m = 0.0
 	peak_m = 0.0
 	projectile.position = Vector3(13.15, 2.08, 0)
+	_update_follow_ground()
 	projectile.visible = true
 	trace_points.clear()
 	trace_points.append(projectile.position)
@@ -376,6 +521,18 @@ func _reset() -> void:
 	launch_button.text = "FIRE TEST"
 	range_label.text = "RANGE READY  /  SINGLE ROUND"
 	_refresh_hud()
+
+
+func _toggle_projectile_camera() -> void:
+	follow_camera_enabled = not follow_camera_enabled
+	if is_instance_valid(follow_camera_button):
+		follow_camera_button.text = "PROJECTILE CAM  •  ON" if follow_camera_enabled else "PROJECTILE CAM  •  OFF"
+		follow_camera_button.button_pressed = follow_camera_enabled
+	if follow_camera_enabled:
+		_update_projectile_camera(1.0 / 60.0)
+	else:
+		camera.position = Vector3(10.5, 22.0, 29.0)
+		camera.look_at(Vector3(16.0, 1.8, 0.0), Vector3.UP)
 
 
 func _refresh_hud() -> void:
